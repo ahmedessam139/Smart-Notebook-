@@ -61,7 +61,7 @@ input[type=text],select{width:100%;padding:8px;border:1px solid var(--bd);border
 <section id="scan" class="hide">
  <div class="card">
   <p style="margin-top:0">Take a photo of your page on a light surface with all four black corner squares visible.</p>
-  <label class="btn" id="pick">Take / choose photo<input type="file" id="file" accept="image/*" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer"></label>
+  <label class="btn" id="pick">📷 Take photo<input type="file" id="cam" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer"></label> <label class="btn alt" style="margin-left:6px">🖼 Choose from gallery<input type="file" id="file" accept="image/*" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer"></label>
   <p class="note" id="msg"></p>
  </div>
  <div class="card hide" id="res">
@@ -131,6 +131,7 @@ $("file").onchange=function(e){var f=e.target.files[0];if(!f)return;
  im.onload=function(){try{process(im)}catch(err){$("msg").textContent="Something went wrong reading that photo. Please try again."}e.target.value=""};
  im.onerror=function(){$("msg").textContent="Couldn’t open that image. Try a JPG or PNG photo.";e.target.value=""};
  im.src=URL.createObjectURL(f)};
+$("cam").onchange=$("file").onchange;
 
 function detect(c){
  var sc=Math.min(1,800/c.width),w=Math.round(c.width*sc),h=Math.round(c.height*sc);
