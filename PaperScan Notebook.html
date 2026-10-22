@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PaperScan Notebook</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mut:#6b6a64;--ac:#c2410c;--bd:#dcdad2}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171716;--card:#232321;--tx:#f1efe8;--mut:#9a988f;--ac:#fb923c;--bd:#3a3a36}}
+:root[data-theme="dark"]{--bg:#171716;--card:#232321;--tx:#f1efe8;--mut:#9a988f;--ac:#fb923c;--bd:#3a3a36}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 12px}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tabs button{flex:1;padding:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;font:inherit;font-weight:600}
+.tabs button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+label{font-size:13px;color:var(--mut);display:block}
+input[type=text],select{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+.btn{position:relative;display:inline-block;cursor:pointer;padding:11px 16px;border:0;border-radius:10px;background:var(--ac);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.btn.alt{background:transparent;color:var(--tx);border:1px solid var(--bd)}
+.sheet{background:#fff;border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+.sheet svg{display:block;width:100%;height:auto}
+.hide{display:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.chips label{display:flex;gap:6px;align-items:center;color:var(--tx);padding:6px 10px;border:1px solid var(--bd);border-radius:20px;font-size:14px}
+.chips label.on{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 14%,transparent)}
+#out img{width:100%;border-radius:8px;border:1px solid var(--bd)}
+.note{font-size:13px;color:var(--mut)}
+@media print{
+ @page{size:A4;margin:0}
+ body>main>*:not(#tpl),#tpl>*:not(.sheet){display:none!important}
+ main{padding:0;max-width:none}#tpl{margin:0}
+ .sheet{border:0;border-radius:0;width:210mm;height:297mm}
+}
+</style>
+</head>
+<body>
+<main>
+<h1>PaperScan Notebook</h1>
+<div class="tabs"><button id="t1" class="on">1 · Print page</button><button id="t2">2 · Scan page</button></div>
+
+<section id="tpl">
+ <div class="card">
+  <div class="grid" id="labels"></div>
+  <div style="margin-top:10px" class="grid">
+   <div><label for="style">Paper style</label>
+   <select id="style"><option value="lined">Lined</option><option value="dot">Dotted</option><option value="grid">Grid</option><option value="blank">Blank</option></select></div>
+   <div><label for="title">Page title</label><input type="text" id="title" value="Notebook" maxlength="30"></div>
+  </div>
+  <p style="margin:12px 0 0"><button class="btn" id="print">Print (A4)</button></p><p class="note" id="pmsg" style="color:var(--ac)"></p>
+  <p class="note">Print at 100% scale (no “fit to page”). If Print does nothing here, open this page in its own browser tab first. Use any dark pen. Mark an X inside the box of each destination you want.</p>
+ </div>
+ <div class="sheet" id="sheet"></div>
+</section>
+
+<section id="scan" class="hide">
+ <div class="card">
+  <p style="margin-top:0">Take a photo of your page on a light surface with all four black corner squares visible.</p>
+  <label class="btn" id="pick">Take / choose photo<input type="file" id="file" accept="image/*" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer"></label>
+  <p class="note" id="msg"></p>
+ </div>
+ <div class="card hide" id="res">
+  <strong>Detected destinations</strong>
+  <div class="chips" id="chips"></div>
+  <p class="note">Wrong? Tap to correct them.</p>
+  <button class="btn" id="share">Share / send</button>
+  <div id="out" style="margin-top:12px"></div>
+ </div>
+</section>
+</main>
+
+<script>
+(function(){
+var W=794,H=1123,CX=[[45,45],[749,45],[45,1078],[749,1078]];
+var SYM=["★","♥","◆","●","■","▲","☾"];
+var DEF=["Google Drive","Dropbox","Email","OneNote","Slack","iCloud","Other"];
+var labels=DEF.slice();
+try{var s=JSON.parse(localStorage.getItem("ps_labels")||"null");if(s&&s.length==7)labels=s}catch(e){}
+function box(i){return{x:72+i*95,y:990,w:80,h:50}}
+var $=function(i){return document.getElementById(i)};
+
+/* ---------- tabs ---------- */
+function tab(n){$("tpl").classList.toggle("hide",n!=1);$("scan").classList.toggle("hide",n!=2);
+ $("t1").classList.toggle("on",n==1);$("t2").classList.toggle("on",n==2)}
+$("t1").onclick=function(){tab(1)};$("t2").onclick=function(){tab(2)};
+
+/* ---------- template ---------- */
+var lw=$("labels");
+labels.forEach(function(l,i){var d=document.createElement("div");
+ d.innerHTML='<label>'+SYM[i]+' Destination '+(i+1)+'</label><input type="text" maxlength="14">';
+ var inp=d.querySelector("input");inp.value=l;
+ inp.oninput=function(){labels[i]=inp.value;try{localStorage.setItem("ps_labels",JSON.stringify(labels))}catch(e){}draw()};
+ lw.appendChild(d)});
+$("style").onchange=draw;$("title").oninput=draw;
+$("print").onclick=function(){
+ var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Print page</title><style>@page{size:A4;margin:0}html,body{margin:0;background:#fff}svg{width:210mm;height:297mm;display:block}</style></head><body>'+$("sheet").innerHTML+'<script>onload=function(){setTimeout(function(){print()},300)}<\/script></body></html>';
+ var w=null;try{w=window.open("","_blank")}catch(e){}
+ if(w){w.document.open();w.document.write(html);w.document.close();$("pmsg").textContent=""}
+ else{$("pmsg").textContent="Pop-up blocked. Allow pop-ups for this page, or open it in its own browser tab and press Print again.";try{window.print()}catch(e){}}
+};
+
+function esc(t){return t.replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c]})}
+function draw(){
+ var st=$("style").value,g="";
+ if(st=="lined")for(var y=130;y<=940;y+=30)g+='<line x1="70" y1="'+y+'" x2="724" y2="'+y+'" stroke="#bbb" stroke-width="1"/>';
+ if(st=="dot")for(var y=130;y<=940;y+=26)for(var x=70;x<=724;x+=26)g+='<circle cx="'+x+'" cy="'+y+'" r="1.3" fill="#999"/>';
+ if(st=="grid"){for(var y=130;y<=940;y+=26)g+='<line x1="70" y1="'+y+'" x2="724" y2="'+y+'" stroke="#ccc"/>';
+  for(var x=70;x<=724;x+=26)g+='<line x1="'+x+'" y1="130" x2="'+x+'" y2="940" stroke="#ccc"/>'}
+ var m="";CX.forEach(function(p){m+='<rect x="'+(p[0]-15)+'" y="'+(p[1]-15)+'" width="30" height="30" fill="#000"/>'});
+ var b="";for(var i=0;i<7;i++){var r=box(i);
+  b+='<text x="'+(r.x+r.w/2)+'" y="982" font-size="24" text-anchor="middle" fill="#000">'+SYM[i]+'</text>'+
+  '<rect x="'+r.x+'" y="'+r.y+'" width="'+r.w+'" height="'+r.h+'" rx="6" fill="none" stroke="#000" stroke-width="2"/>'+
+  '<text x="'+(r.x+r.w/2)+'" y="1056" font-size="11" text-anchor="middle" fill="#333" font-family="Arial,sans-serif">'+esc(labels[i])+'</text>'}
+ $("sheet").innerHTML='<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg"><rect width="'+W+'" height="'+H+'" fill="#fff"/>'+
+  '<text x="70" y="88" font-size="26" font-family="Georgia,serif" fill="#000">'+esc($("title").value)+'</text>'+
+  '<text x="724" y="88" font-size="12" text-anchor="end" font-family="Arial,sans-serif" fill="#555">Date ____ / ____ / ________</text>'+
+  '<line x1="70" y1="100" x2="724" y2="100" stroke="#000" stroke-width="1.5"/>'+g+m+b+'</svg>';
+}
+draw();
+
+/* ---------- scan ---------- */
+var cur=null;
+$("file").onchange=function(e){var f=e.target.files[0];if(!f)return;
+ $("msg").textContent="Processing…";
+ var im=new Image();
+ im.onload=function(){try{process(im)}catch(err){$("msg").textContent="Something went wrong reading that photo. Please try again."}e.target.value=""};
+ im.onerror=function(){$("msg").textContent="Couldn’t open that image. Try a JPG or PNG photo.";e.target.value=""};
+ im.src=URL.createObjectURL(f)};
+
+function detect(c){
+ var sc=Math.min(1,800/c.width),w=Math.round(c.width*sc),h=Math.round(c.height*sc);
+ var t=document.createElement("canvas");t.width=w;t.height=h;var x=t.getContext("2d");x.drawImage(c,0,0,w,h);
+ var d=x.getImageData(0,0,w,h).data,n=w*h,gr=new Uint8Array(n),hist=new Array(256).fill(0),i;
+ for(i=0;i<n;i++){gr[i]=.3*d[4*i]+.59*d[4*i+1]+.11*d[4*i+2];hist[gr[i]]++}
+ var sum=0;for(i=0;i<256;i++)sum+=i*hist[i];
+ var wB=0,sB=0,mx=0,th=128;
+ for(i=0;i<256;i++){wB+=hist[i];if(!wB)continue;var wF=n-wB;if(!wF)break;sB+=i*hist[i];
+  var v=wB*wF*Math.pow(sB/wB-(sum-sB)/wF,2);if(v>mx){mx=v;th=i}}
+ var iw=w+1,I=new Int32Array(iw*(h+1));
+ for(var y=0;y<h;y++){var row=0;for(var xx=0;xx<w;xx++){row+=gr[y*w+xx]<th?1:0;I[(y+1)*iw+xx+1]=I[y*iw+xx+1]+row}}
+ var k=8,Q=[[],[],[],[]];
+ for(y=0;y<=h-k;y+=2)for(xx=0;xx<=w-k;xx+=2){
+  if(I[(y+k)*iw+xx+k]-I[y*iw+xx+k]-I[(y+k)*iw+xx]+I[y*iw+xx]==k*k){
+   var cx=xx+k/2,cy=y+k/2;Q[(cy>h/2?2:0)+(cx>w/2?1:0)].push([cx,cy])}}
+ var out=[];
+ for(i=0;i<4;i++){var P=Q[i];if(!P.length)return null;
+  var best=P[0],bd=-1;P.forEach(function(p){var dd=Math.hypot(p[0]-w/2,p[1]-h/2);if(dd>bd){bd=dd;best=p}});
+  var sx=0,sy=0,c2=0;P.forEach(function(p){if(Math.hypot(p[0]-best[0],p[1]-best[1])<25){sx+=p[0];sy+=p[1];c2++}});
+  out.push([sx/c2/sc,sy/c2/sc])}
+ return out;
+}
+function detect2(c){
+ var sc=Math.min(1,800/c.width),w=Math.round(c.width*sc),h=Math.round(c.height*sc);
+ var t=document.createElement("canvas");t.width=w;t.height=h;var x=t.getContext("2d");x.drawImage(c,0,0,w,h);
+ var d=x.getImageData(0,0,w,h).data,n=w*h,gr=new Uint8Array(n),hist=new Array(256).fill(0),i;
+ for(i=0;i<n;i++){gr[i]=.3*d[4*i]+.59*d[4*i+1]+.11*d[4*i+2];hist[gr[i]]++}
+ var sum=0;for(i=0;i<256;i++)sum+=i*hist[i];
+ var wB=0,sB=0,mx=0,th=128;
+ for(i=0;i<256;i++){wB+=hist[i];if(!wB)continue;var wF=n-wB;if(!wF)break;sB+=i*hist[i];
+  var v=wB*wF*Math.pow(sB/wB-(sum-sB)/wF,2);if(v>mx){mx=v;th=i}}
+ th=Math.min(th,110);
+ var bw=new Uint8Array(n);for(i=0;i<n;i++)bw[i]=gr[i]<th?1:0;
+ var lab=new Int32Array(n),st=new Int32Array(n),cand=[],L=0;
+ for(i=0;i<n;i++){if(!bw[i]||lab[i])continue;L++;
+  var sp=0,x0=w,x1=0,y0=h,y1=0,area=0;st[sp++]=i;lab[i]=L;
+  while(sp){var p=st[--sp],px=p%w,py=(p-px)/w;area++;
+   if(px<x0)x0=px;if(px>x1)x1=px;if(py<y0)y0=py;if(py>y1)y1=py;
+   if(px>0&&bw[p-1]&&!lab[p-1]){lab[p-1]=L;st[sp++]=p-1}
+   if(px<w-1&&bw[p+1]&&!lab[p+1]){lab[p+1]=L;st[sp++]=p+1}
+   if(py>0&&bw[p-w]&&!lab[p-w]){lab[p-w]=L;st[sp++]=p-w}
+   if(py<h-1&&bw[p+w]&&!lab[p+w]){lab[p+w]=L;st[sp++]=p+w}}
+  var bwd=x1-x0+1,bht=y1-y0+1;
+  if(bwd<8||bht<8||bwd>.12*w||bht>.12*w)continue;
+  var ra=bwd/bht;if(ra<.75||ra>1.33||area/(bwd*bht)<.78)continue;
+  var m=Math.max(3,Math.round(.3*Math.max(bwd,bht))),rx0=Math.max(0,x0-m),rx1=Math.min(w-1,x1+m),ry0=Math.max(0,y0-m),ry1=Math.min(h-1,y1+m),dk=0,tot=0;
+  for(var yy=ry0;yy<=ry1;yy++)for(var xx=rx0;xx<=rx1;xx++){if(xx>=x0&&xx<=x1&&yy>=y0&&yy<=y1)continue;tot++;if(bw[yy*w+xx])dk++}
+  if(!tot||dk/tot>.12)continue;
+  cand.push([(x0+x1+1)/2/sc,(y0+y1+1)/2/sc,Math.max(bwd,bht)]);
+ }
+ var big=0;cand.forEach(function(p){if(p[2]>big)big=p[2]});
+ cand=cand.filter(function(p){return p[2]>=.6*big});
+ if(cand.length<4)return null;
+ var mx2=0,my2=0;cand.forEach(function(p){mx2+=p[0]/cand.length;my2+=p[1]/cand.length});
+ var Q=[null,null,null,null],QD=[-1,-1,-1,-1];
+ cand.forEach(function(p){var q=(p[1]>my2?2:0)+(p[0]>mx2?1:0),dd=Math.hypot(p[0]-mx2,p[1]-my2);if(dd>QD[q]){QD[q]=dd;Q[q]=[p[0],p[1]]}});
+ for(i=0;i<4;i++)if(!Q[i])return null;
+ return Q;
+}
+function homog(a,b){
+ var A=[],B=[],i,j,k;
+ for(i=0;i<4;i++){var x=a[i][0],y=a[i][1],u=b[i][0],v=b[i][1];
+  A.push([x,y,1,0,0,0,-u*x,-u*y]);B.push(u);A.push([0,0,0,x,y,1,-v*x,-v*y]);B.push(v)}
+ for(i=0;i<8;i++){var p=i;for(j=i+1;j<8;j++)if(Math.abs(A[j][i])>Math.abs(A[p][i]))p=j;
+  var tA=A[i];A[i]=A[p];A[p]=tA;var tB=B[i];B[i]=B[p];B[p]=tB;
+  for(j=i+1;j<8;j++){var f=A[j][i]/A[i][i];for(k=i;k<8;k++)A[j][k]-=f*A[i][k];B[j]-=f*B[i]}}
+ var h=new Array(8);
+ for(i=7;i>=0;i--){var s=B[i];for(j=i+1;j<8;j++)s-=A[i][j]*h[j];h[i]=s/A[i][i]}
+ return h;
+}
+function process(im){
+ var sc=Math.min(1,1800/Math.max(im.width,im.height)),c=document.createElement("canvas");
+ c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);
+ var cx=c.getContext("2d");cx.drawImage(im,0,0,c.width,c.height);
+ var pts=detect2(c);
+ if(!pts){$("msg").textContent="Couldn’t find the 4 corner squares. Try a brighter, flatter photo on a light surface with all corners in view.";return}
+ var h=homog(CX,pts),src=cx.getImageData(0,0,c.width,c.height),sd=src.data;
+ var o=document.createElement("canvas");o.width=W;o.height=H;var ox=o.getContext("2d"),od=ox.createImageData(W,H),dd=od.data;
+ for(var v=0;v<H;v++)for(var u=0;u<W;u++){
+  var q=h[6]*u+h[7]*v+1,sx=Math.round((h[0]*u+h[1]*v+h[2])/q),sy=Math.round((h[3]*u+h[4]*v+h[5])/q),j=4*(v*W+u);
+  if(sx>=0&&sy>=0&&sx<c.width&&sy<c.height){var s=4*(sy*c.width+sx);dd[j]=sd[s];dd[j+1]=sd[s+1];dd[j+2]=sd[s+2];dd[j+3]=255}
+  else{dd[j]=dd[j+1]=dd[j+2]=255;dd[j+3]=255}}
+ ox.putImageData(od,0,0);
+ /* measure boxes */
+ var gray=function(i){return .3*dd[i]+.59*dd[i+1]+.11*dd[i+2]};
+ 
+ 
+ var marked=[];
+ for(var i=0;i<7;i++){var r=box(i),vs=[],dk=0,y,x;
+  for(y=r.y+11;y<r.y+r.h-11;y++)for(x=r.x+11;x<r.x+r.w-11;x++)vs.push(gray(4*(y*W+x)));var so=vs.slice().sort(function(a,b){return a-b}),paper=so[Math.floor(so.length*.9)]||200;vs.forEach(function(g){if(g<paper*.55)dk++});
+  marked.push(dk/vs.length>.09)}
+ cur={canvas:o,marked:marked};
+ $("msg").textContent="";showRes();
+}
+function showRes(){
+ $("res").classList.remove("hide");var ch=$("chips");ch.innerHTML="";
+ labels.forEach(function(l,i){var lb=document.createElement("label");
+  lb.className=cur.marked[i]?"on":"";
+  lb.innerHTML='<input type="checkbox"'+(cur.marked[i]?" checked":"")+'> '+SYM[i]+" "+esc(l);
+  lb.querySelector("input").onchange=function(e){cur.marked[i]=e.target.checked;lb.className=e.target.checked?"on":""};
+  ch.appendChild(lb)});
+ $("out").innerHTML='<img alt="Scanned page" src="'+cur.canvas.toDataURL("image/jpeg",.9)+'">'+
+  '<p class="note">Long-press (or right-click) the image to save it.</p>';
+}
+$("share").onclick=function(){
+ if(!cur)return;
+ var dest=labels.filter(function(l,i){return cur.marked[i]}).join(", ")||"no destination";
+ cur.canvas.toBlob(function(b){
+  var f=new File([b],"scan-"+Date.now()+".jpg",{type:"image/jpeg"});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){
+   navigator.share({files:[f],title:"Scan → "+dest,text:"Scan for: "+dest}).catch(function(err){if(err&&err.name!=="AbortError")$("msg").textContent="Sharing was blocked here. Long-press the image below to save it, then send it to: "+dest})}
+  else{$("msg").textContent="Sharing isn’t supported in this browser. Save the image below and send it to: "+dest}
+ },"image/jpeg",.9)};
+})();
+</script>
+</body>
+</html>
