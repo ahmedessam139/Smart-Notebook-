@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Fake Mastercard Connect (Practice)</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f5f5f5;color:#222}
+#top{background:#222;color:#fff;padding:12px 24px;display:flex;gap:20px;align-items:center}
+#top a{color:#fff;cursor:pointer;font-size:14px}#top b{margin-right:auto;font-size:18px}
+#sub{background:#444;color:#fff;padding:12px 24px;font-size:20px}
+#app{padding:20px 24px}
+.tiles{display:flex;gap:16px;flex-wrap:wrap}
+.tile{background:#fff;border-top:3px solid #1d7a5f;width:200px;height:110px;padding:12px;cursor:pointer;box-shadow:0 1px 3px #0003}
+.tile small{color:#1d7a5f;font-weight:bold;display:block;margin-bottom:12px}
+.tabs span{display:inline-block;padding:8px 14px;cursor:pointer}.tabs .on{border-bottom:3px solid #cf4500;font-weight:bold}
+.btn{background:#cf4500;color:#fff;border:0;border-radius:20px;padding:8px 18px;cursor:pointer}
+.btn.l{background:#fff;color:#cf4500;border:1px solid #cf4500}
+table{border-collapse:collapse;background:#fff;width:100%}th,td{border-bottom:1px solid #ddd;padding:8px;text-align:left;font-size:13px}
+.box{background:#fff;padding:14px;margin:10px 0}.row{display:flex;gap:20px}
+.side{width:230px;background:#fff;padding:14px}.side label{display:block;margin:6px 0}
+a.l{color:#cf4500;cursor:pointer;text-decoration:underline}
+.menu{position:absolute;background:#fff;border:1px solid #999;padding:6px 12px;cursor:pointer;z-index:5}
+input,select{padding:6px;margin:4px 0}
+</style></head><body>
+<div id="top"><b>connect (FAKE)</b><a id="nav-myitems" onclick="go('home')">My Items</a><a>Track Orders</a><a>Help</a></div>
+<div id="sub" id="title">Practice Portal - no login, fake data</div>
+<div id="app"></div>
+<script>
+const M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],p2=n=>String(n).padStart(2,"0");
+const fmt=d=>`${M[d.getMonth()]} ${p2(d.getDate())}, ${d.getFullYear()}`;
+const fmt2=d=>`${p2(d.getMonth()+1)}/${p2(d.getDate())}/${d.getFullYear()}`;
+const iso=d=>`${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}`;
+const day=n=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+n);return d};
+const ICAS=["16719","22072","22073"];
+// Advisement data: 2 per ICA per day, last 4 days
+const ADV=[];ICAS.forEach(i=>{for(let n=-10;n<=-1;n++)for(let k=1;k<=2;k++)ADV.push({name:`TA Detail ${i}-${k}`,ica:i,cur:"USD",svc:"U.S. DOLLAR REGIONAL",amt:(Math.round(Math.random()*9e6)/100).toFixed(2),date:day(n),time:`0${k+3}:00`})});
+// Operational reports: 18 rows (mix of types), 10 per page
+const OPS=[];for(let n=0;n<18;n++){const t=n%3==0?["Billing Collectio...","Billing Collection","MCBS","PDF Excel"]:n%3==1?["Daily Control Re...","SWCHD363","MDS","Text"]:["MCI Invoice","MCI Invoice","MCBS","PDF Excel"];
+OPS.push({name:t[0],id:t[1],cat:t[2],ica:ICAS[n%3],date:day(-(n%7)-1),lines:Math.floor(Math.random()*200),fmt:t[3]})}
+const S={view:"home",tab:"adv",ica:"",mode:"single",from:"",to:"",searched:false,res:[],sel:null,opFound:false,opPage:1};
+function go(v){S.view=v;render()}
+function dl(name,text){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text]));a.download=name;a.click()}
+function render(){const A=document.getElementById("app");let h="";
+if(S.view=="home")h=`<h2>Manage My Items</h2><div class="tiles">
+<div class="tile" id="tile-loyalty"><small>APPLICATION</small>Loyalty BI</div>
+<div class="tile" id="tile-settlement" onclick="go('settle')"><small>APPLICATION</small>Manage My Settlement</div>
+<div class="tile" id="tile-operational" onclick="go('ops')"><small>APPLICATION</small>Operational Reports</div>
+<div class="tile" id="tile-support"><small>APPLICATION</small>Support Case Management</div></div>`;
+else if(S.view=="settle")h=`<h2>Manage My Settlement</h2><div class="tabs"><span class="on" id="tab-advisements" onclick="go('search')">Advisements</span><span>Assessments</span><span>Account Balances</span></div>
+<div class="box"><h3>Advisement Overview</h3><button class="btn" id="btn-search-advisements" onclick="go('search')">Search Advisements</button></div>`;
+else if(S.view=="search"){h=`<h2>Search Advisements</h2><div id="data-hint" style="background:#fff3cd;padding:6px 10px;font-size:12px">Practice data available: ${fmt(day(-10))} to ${fmt(day(-1))} | ICAs: ${ICAS.join(", ")} | Leave ICA/date empty to see everything</div><a class="l" id="btn-back-dashboard" onclick="go('settle')">&larr; Back</a>
+<div class="row"><div class="side"><b>Show Results For:</b>
+<label><input type="radio" id="rb-advisements" name="r" checked> Advisements</label><label><input type="radio" id="rb-assessments" name="r"> Assessments</label>
+ICA or Service ID<br><input id="in-ica" value="${S.ica}" placeholder="Min 3 characters" onchange="S.ica=this.value">
+<div><button class="btn l" id="btn-single" onclick="S.mode='single';render()">Single</button> <button class="btn l" id="btn-range" onclick="S.mode='range';render()">Range</button></div>
+From*<br><input id="in-from" value="${S.from}" placeholder="Mar 01, 2026" onchange="S.from=this.value">
+${S.mode=="range"?`<br>To*<br><input id="in-to" value="${S.to}" placeholder="Mar 02, 2026" onchange="S.to=this.value">`:""}
+<br><button class="btn" id="btn-search" onclick="doSearch()">Search</button></div>
+<div style="flex:1"><table id="results-table"><tr><th>Advisement Name</th><th>ICAs</th><th>Currency</th><th>Service ID</th><th>Net Settlement Amount</th><th>Date</th><th>Time (UTC)</th></tr>`;
+if(!S.searched)h+=`<tr><td colspan=7 id="msg-initial">Please Enter Criteria in Search pane and initiate Search.</td></tr>`;
+else if(!S.res.length)h+=`<tr><td colspan=7 id="msg-noresults">${S.err||"No results found."}</td></tr>`;
+else S.res.forEach((r,i)=>h+=`<tr class="adv-row"><td><a class="l adv-link" id="adv-link-${i}" onclick="S.sel=${i};go('detail')">${r.name}</a></td><td>${r.ica}</td><td>${r.cur}</td><td>${r.svc}</td><td>${r.amt}</td><td>${fmt(r.date)}</td><td>${r.time}</td></tr>`);
+h+=`</table></div></div>`}
+else if(S.view=="detail"){const r=S.res[S.sel];h=`<h2>TA Detail - ${fmt(r.date)}</h2><a class="l" id="btn-back" onclick="go('search')">&larr; Back</a>
+<div class="box">ICA: ${r.ica} | Service: ${r.svc} | Net: ${r.amt} USD<br><br>
+<button class="btn l" id="btn-export" onclick="document.getElementById('exp').style.display='block'">Export &#9662;</button>
+<div id="exp" class="menu" style="display:none"><div id="export-pdf" onclick="exp('pdf')">PDF</div><div id="export-csv" onclick="exp('csv')">CSV</div></div></div>`}
+else if(S.view=="ops"){h=`<h2>Operational Reports</h2><div class="row"><div class="side"><b>Search</b>
+Category<br><select id="sel-category"><option>All Categories</option><option>MCBS</option><option>MDS</option></select>
+<label><input type="radio" name="t"> All</label><label><input type="radio" name="t" id="rb-today"> Today</label>
+<label><input type="radio" name="t" id="rb-last7" checked> Last 7 Days</label><label><input type="radio" name="t" id="rb-last30"> Last 30 Days</label>
+ICA<br><select id="sel-ica"><option>All</option>${ICAS.map(i=>`<option>${i}</option>`)}</select><br><br>
+<button class="btn" id="btn-find" onclick="S.opFound=true;S.opPage=1;render()">Find Reports</button></div><div style="flex:1">`;
+if(!S.opFound)h+=`<div class="box" id="msg-ops">Click Find Reports.</div>`;
+else{const pg=OPS.slice((S.opPage-1)*10,S.opPage*10);
+h+=`<table id="ops-table"><tr><th>Report name</th><th>Report ID</th><th>Category</th><th>ICA</th><th>Date</th><th>Lines</th><th>Format</th><th>Action</th></tr>`;
+pg.forEach((r,i)=>h+=`<tr class="op-row"><td>${r.name}</td><td>${r.id}</td><td>${r.cat}</td><td>${r.ica}</td><td>${fmt2(r.date)}</td><td>${r.lines}</td><td>${r.fmt}</td>
+<td style="position:relative"><a class="l act-btn" id="act-${i}" onclick="openAct(${i})">...</a><div class="menu" id="menu-${i}" style="display:none" onclick="opDl(${(S.opPage-1)*10+i})"><span class="act-download">Download</span></div></td></tr>`);
+h+=`</table><p id="pager">Page ${S.opPage} of 2 | Displaying ${pg.length} of ${OPS.length}
+<button class="btn l" id="btn-prev" ${S.opPage==1?"disabled":""} onclick="S.opPage--;render()">Prev</button>
+<button class="btn l" id="btn-next" ${S.opPage==2?"disabled":""} onclick="S.opPage++;render()">Next</button></p>`}
+h+=`</div></div>`}
+A.innerHTML=h}
+function doSearch(){S.ica=document.getElementById("in-ica").value.trim();S.from=document.getElementById("in-from").value.trim();
+const t=document.getElementById("in-to");S.to=t?t.value.trim():"";
+const f=S.from?new Date(S.from):null,e=S.to?new Date(S.to):f;
+S.err=(f&&isNaN(f))||(e&&isNaN(e))?"Invalid date. Use format like "+fmt(day(-2)):"";
+S.res=S.err?[]:ADV.filter(r=>(!S.ica||r.ica==S.ica)&&(!f||r.date>=f)&&(!e||r.date<=e));S.searched=true;render()}
+function exp(f){const r=S.res[S.sel];const n=`Advisement_${r.ica}_${iso(r.date)}_${r.name.split(" ").pop()}.${f}`;
+dl(n,f=="csv"?`ICA,Date,Net\n${r.ica},${fmt(r.date)},${r.amt}\n`:`FAKE PDF ${n}`);document.getElementById("exp").style.display="none"}
+function openAct(i){document.querySelectorAll(".menu").forEach(m=>m.style.display="none");document.getElementById("menu-"+i).style.display="block"}
+function opDl(i){const r=OPS[i];dl(`${r.id}_${r.ica}_${iso(r.date)}_${i}.${r.fmt=="Text"?"txt":"pdf"}`,`FAKE ${r.name} ICA ${r.ica} lines ${r.lines}`);render()}
+render();
+</script></body></html>
