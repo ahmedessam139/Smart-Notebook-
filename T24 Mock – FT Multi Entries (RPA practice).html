@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>T24 Mock - FT Multi Entries</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light;
+--bg:#fff;--pane:#e1e8e8;--tx:#1a1a1a;--lk:#1b4f9c;--bar:#0b5ebf;--bd:#9aa;--er:#c00;--inp:#fff;--btn:#2b6cc4}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#16191c;--pane:#242b2e;--tx:#e6e6e6;--lk:#8db8f5;--bar:#0b4a95;--bd:#566;--er:#ff6b6b;--inp:#1d2326;--btn:#3a7bd5}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:12px Verdana,Arial,sans-serif}
+a,.lk{color:var(--lk);cursor:pointer;text-decoration:underline}
+#login{max-width:640px;margin:30px auto;padding:0 12px}
+.logo{font-size:44px;color:#c33;padding:14px}.logo b{color:var(--tx);font-weight:300}
+.box{border:1px solid var(--bd);border-radius:12px;padding:22px;max-width:380px;margin:30px auto;background:var(--pane)}
+.box h4{margin:0 0 4px;color:var(--lk)}.box small{display:block;margin-bottom:10px}
+.box label{display:flex;gap:8px;margin:6px 0}.box label span{width:70px}
+input,select{background:var(--inp);color:var(--tx);border:1px solid var(--bd);padding:2px 4px;font-size:12px}
+.bad{border:2px solid var(--er)}
+button{background:var(--btn);color:#fff;border:0;border-radius:3px;padding:3px 9px;cursor:pointer;font-size:12px;margin:1px}
+.top{padding:4px 8px;border-bottom:1px solid var(--bd)}.top a{margin-right:10px}
+.wrap{display:flex}.menu{width:270px;min-width:200px;background:var(--pane);padding:6px;font-size:11px;line-height:1.7;max-height:90vh;overflow:auto}
+.menu div{padding-left:10px}.menu .l2{padding-left:24px}.menu .l3{padding-left:38px}
+.pane{flex:1;padding:8px;overflow-x:auto}
+.tb{background:var(--pane);padding:5px;border:1px solid var(--bd)}
+.errs{background:var(--pane);border:1px solid var(--bd);padding:6px;margin:6px 0}
+.errs div{color:var(--er);font-weight:bold}.errs div:before{content:"\2716  "}
+.row{display:grid;grid-template-columns:150px 1fr;gap:3px 8px;padding:8px 0;border-bottom:1px solid var(--bd);max-width:560px}
+.row .d{color:var(--lk);font-size:11px}
+.ok{background:var(--pane);padding:10px;border:1px solid var(--bd);margin-top:8px}
+table{border-collapse:collapse}td,th{border:1px solid var(--bd);padding:3px 8px}
+#tc{position:fixed;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));background:var(--pane);border:1px solid var(--bd);padding:6px;font-size:11px;max-width:240px;z-index:9}
+#tc summary{cursor:pointer;font-weight:bold}#tc input[type=number]{width:50px}
+.msg{color:var(--er);margin:8px 0}
+</style></head><body>
+<div id="app"></div>
+<details id="tc"><summary>Test controls (not part of T24)</summary>
+<div>Users: <b>maker / maker123</b>, <b>checker / checker123</b></div>
+<label>Idle timeout (s) <input type="number" id="idleSec" value="55" min="5"></label><br>
+<label><input type="checkbox" id="injectGeneric"> Inject generic "Missing Amount" error on first commit</label>
+<div>Idle: <span id="idleLeft">-</span>s</div></details>
+<script>
+const $=s=>document.querySelector(s),M=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const USERS={maker:'maker123',checker:'checker123'},CC={'20':'Egyptian pound','01':'US Dollar'},TCD={'25':'Credit Adjustment','104':'Payment'};
+const today=()=>{const d=new Date();return String(d.getDate()).padStart(2,'0')+' '+M[d.getMonth()]+' '+d.getFullYear()};
+const blank=()=>({tc:'',ac:'',pl:'',cc:'',sg:'Credit',lcy:'',fcy:'',vd:today(),tr:'',or:''});
+const S={user:null,m:{ft:0,int:0},pane:'',rows:[blank()],errs:[],bad:{},fired:0,id:'',msg:'',txns:{},last:Date.now(),note:'',cur:null};
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const MENU1=['SAIB CARDS MENU','CREATE NEGATIVE LIST FILE'],
+MENU2=['SAIB UPLOAD','NON CUSTOMERS & NON ACCOUNTS','SAIB.RISK.RATE','UPDATE MASTER CARD I-SCORE DATA','Expenses','SAIB.RETAIL.MENU.CARD.CENTER','DEPOSITS ENQUIRY','Standing Order for Credit Card Payments','ACCOUNT AMOUNT INFO','CORTEX.MENU','BULK PAYROLL REPORT','Bulk Linkage Prepaid Card','Unlink Prepaid Card','LINK COMPANY PAYROLL','SAIB ATM','Master & prepaid cards payment allow 1016'],
+FT1=['See FT Operations','Money Laundry Check Enq','Customer Special Charges','FT.Outgoing Payments'],
+INT=['FT Between Accounts','FT Cust - Internal','Send Transfer To Non Customer','Transfer To Branches - To Issue Draft','Direct Charges','@multi','FT CREDIT 1069','FT DEBIT 1068','Compulsory Expenses','MASTER CARD PAYMENT','ACCT SETTLEMENT (1002 & 1016)'],
+FT2=['FT.Incoming Transfers','Standing Orders','BD Issuance / Cancellation','Bank Draft CHQs Eqnuiries','FT.Cheque Register','FT.Cheque Operations','Free Send Message','Debit Clearing','General Accounts Paying','Exception','INPUT CBE BOP STATISTICS DATA'];
+
+function render(){
+ if(!S.user){$('#app').innerHTML=`<div id="login"><div class="logo">&#10059; <b>saib</b></div>
+ <div class="box"><h4>Transact Sign in</h4><small>Usernames and passwords are case sensitive.</small>
+ <label><span>Username</span><input id="username" name="username" autocomplete="off"></label>
+ <label><span>Password</span><input id="password" name="password" type="password" autocomplete="off"></label>
+ <button id="btnSignIn" data-a="signin">Sign in</button>${S.note?`<div class="msg" id="loginMsg">${S.note}</div>`:''}</div>
+ <p><a>About SAIB</a></p><p><b>Copyright &copy; SAIBBank Headquarters EG All rights reserved.</b></p></div>`;return}
+ const mi=t=>`<div class="lk${t[1]||''}" ${t[2]||''}>${t[0]}</div>`;
+ let h=MENU1.map(x=>`<div>&gt; ${x}</div>`).join('');
+ h+=`<div class="lk" id="menu_ft" data-a="menuft">${S.m.ft?'+':'&gt;'} FUNDS TRANSFER MENU</div>`;
+ if(S.m.ft){h+=FT1.map(x=>`<div class="l2">&#9633; ${x}</div>`).join('')+`<div class="l2 lk" id="menu_int" data-a="menuint">${S.m.int?'+':'&gt;'} FT.Internal Transfers</div>`;
+  if(S.m.int)h+=INT.map(x=>x=='@multi'?`<div class="l3 lk" id="menu_multi" data-a="multi">&#9633; FT Multi Entries</div>`:`<div class="l3">&#9633; ${x}</div>`).join('');
+  h+=FT2.map(x=>`<div class="l2">&gt; ${x}</div>`).join('')}
+ h+=MENU2.map(x=>`<div>&gt; ${x}</div>`).join('');
+ $('#app').innerHTML=`<div class="top"><a>Help</a><a>Tools</a><a id="signOff" data-a="signoff">Sign Off</a> <span>User: <b id="curUser">${S.user}</b></span></div>
+ <div class="wrap"><div class="menu" id="menu">${h}</div><div class="pane" id="pane">${paneH()}</div></div>`}
+
+function paneH(){
+ if(S.pane=='enq'){const p=Object.values(S.txns).filter(t=>t.st=='INAU');
+  return `<div class="tb">More Actions <select><option></option></select></div>
+  <p>Acount Transfer MULTI ENTRIES <input id="txnIdInput" name="txnIdInput"> <button id="btnGo" data-a="go">Go</button> <button id="btnNewDeal" data-a="newdeal" title="New Deal">New Deal</button></p>
+  ${S.msg?`<div class="msg" id="enqMsg">${S.msg}</div>`:''}
+  ${p.length?`<table id="pendingTbl"><tr><th>Transaction ID</th><th>Inputter</th><th>Status</th></tr>${p.map(t=>`<tr><td class="lk" data-a="open" data-id="${t.id}">${t.id}</td><td>${t.by}</td><td>${t.st}</td></tr>`).join('')}</table>`:''}`}
+ if(S.pane=='form'||S.pane=='view'){const ro=S.pane=='view',t=S.cur;
+  const tb=ro?`<button id="btnAuthorise" data-a="auth">Authorise</button> <button id="btnBack" data-a="multi">Back</button> Status: <b id="txnStatus">${t.st}</b> ID: <b>${t.id}</b>`
+  :`<button id="btnCommit" data-a="commit" title="Commit the deal">&#10004; Commit</button><button id="btnValidate" data-a="validate">Validate</button><button id="btnRefresh" data-a="refresh">&#10227; Refresh</button><button id="btnAddRow" data-a="addrow">+ Add entry</button><button id="btnDelRow" data-a="delrow">- Delete last</button> More Actions <select><option></option></select>`;
+  return `<div class="tb">${tb}</div>${S.msg?`<div class="msg" id="actMsg">${S.msg}</div>`:''}
+  ${S.errs.length?`<div class="errs" id="errBox">${S.errs.map(e=>`<div class="err">${esc(e)}</div>`).join('')}</div>`:''}
+  <div id="rows">${S.rows.map((r,i)=>rowH(r,i+1,ro)).join('')}</div>
+  <div class="row"><b>AUDIT</b><span></span><span>Record Status</span><span>${ro?t.st:''}</span><span>Inputter.1</span><span>${ro?t.by:''}</span><span>Authoriser</span><span>${ro?(t.au||''):''}</span><span>Co Code</span><span></span></div>`}
+ if(S.pane=='done')return `<div class="ok" id="doneBox">Txn Complete: <b id="txnId">${S.id}</b> (Status INAU - awaiting authorisation)<br><br><button id="btnBack" data-a="multi">Back to enquiry</button></div>`;
+ return `<p>Select a menu item.</p>`}
+
+function rowH(r,n,ro){const d=ro?'readonly':'',b=f=>S.bad[f+'_'+n]?' bad':'';
+ const I=(f,k,id)=>`<input id="${id}_${n}" name="${id}_${n}" class="${b(id).trim()}" value="${esc(r[k])}" ${d}>`;
+ return `<div class="row" id="row_${n}"><span>Txn.Code :${n}</span><span>${I('','tc','txnCode')} <span class="d">${TCD[r.tc]||''}</span></span>
+ <span>Account Number.${n}</span><span>${I('','ac','accountNumber')}</span>
+ <span>PL.Category :${n}</span><span>${I('','pl','plCategory')}</span>
+ <span>Currency :${n}</span><span>${I('','cc','currency')} <span class="d">${CC[r.cc]||''}</span></span>
+ <span>Sign.${n}</span><span><select id="sign_${n}" name="sign_${n}" ${ro?'disabled':''}><option${r.sg=='Credit'?' selected':''}>Credit</option><option${r.sg=='Debit'?' selected':''}>Debit</option></select></span>
+ <span>LCY AMOUNT .${n}</span><span>${I('','lcy','lcyAmount')}</span>
+ <span>FCY AMOUNT.${n}</span><span>${I('','fcy','fcyAmount')}</span>
+ <span>Value.Date :${n}</span><span>${I('','vd','valueDate')}</span>
+ <span>Their.ref.${n}</span><span>${I('','tr','theirRef')}</span><span>Our.ref.${n}</span><span>${I('','or','ourRef')}</span></div>`}
+
+function sync(){if(S.pane!='form')return;const K={txnCode:'tc',accountNumber:'ac',plCategory:'pl',currency:'cc',lcyAmount:'lcy',fcyAmount:'fcy',valueDate:'vd',theirRef:'tr',ourRef:'or'};
+ S.rows.forEach((r,i)=>{const n=i+1;for(const f in K){const e=$('#'+f+'_'+n);if(e)r[K[f]]=e.value.trim()}const s=$('#sign_'+n);if(s)r.sg=s.value})}
+
+function validate(){const e=[],bad={};let cr=0,dr=0;
+ S.rows.forEach((r,i)=>{const n=i+1,x=(f,m)=>{e.push(m);bad[f+'_'+n]=1};
+  if(!TCD[r.tc])x('txnCode',`TXN.CODE:${n} INVALID TRANSACTION CODE`);
+  else if((r.sg=='Credit')!=(r.tc=='25'))x('txnCode',`TXN.CODE:${n} CODE DOES NOT MATCH SIGN`);
+  if(!r.ac&&!r.pl)x('accountNumber',`ACCOUNT.NUMBER:${n} INPUT MISSING`);
+  if(r.pl&&!/^\d+$/.test(r.pl))x('plCategory',`PL.CATEGORY:${n} NUMERIC ONLY`);
+  if(!CC[r.cc]){x('currency',`CURRENCY:${n} INVALID CURRENCY`);return}
+  const k=r.cc=='20'?'fcy':'lcy',F=k+'Amount',v=r[k];let a=0;
+  if(v===''){bad[F+'_'+n]=1;if(k=='fcy')e.push(`FCY.AMOUNT:${n} MISSING AMOUNT.FCY`,`EXPOSURE.DATE.:${n} MISSING AMOUNT.FCY`);else e.push(`LCY.AMOUNT:${n} MISSING AMOUNT.LCY`)}
+  else if(isNaN(+v)||+v<=0)x(F,`${k.toUpperCase()}.AMOUNT:${n} INVALID AMOUNT`);
+  else a=+v;
+  r.sg=='Credit'?cr+=a:dr+=a});
+ if(Math.abs(cr-dr)>0.0001){e.push('TOT.LCY.DRS.AMT UNBALANCED TRANSACTION - CANNOT CONTINUE');S.rows.forEach((r,i)=>{if(CC[r.cc])bad[(r.cc=='20'?'fcy':'lcy')+'Amount_'+(i+1)]=1})}
+ S.errs=e;S.bad=bad;return e}
+
+function act(a,t){sync();S.msg='';
+ if(a=='signin'){const u=$('#username').value,p=$('#password').value;
+  if(USERS[u]&&USERS[u]===p){S.user=u;S.note='';S.pane='';S.m={ft:0,int:0}}else S.note='Invalid username or password.'}
+ else if(a=='signoff'){S.user=null;S.note=''}
+ else if(a=='menuft')S.m.ft^=1;
+ else if(a=='menuint')S.m.int^=1;
+ else if(a=='multi'){S.pane='enq'}
+ else if(a=='newdeal'){S.pane='form';S.rows=[blank()];S.errs=[];S.bad={};S.fired=0;S.cur=null}
+ else if(a=='go'){const id=$('#txnIdInput').value.trim().toUpperCase(),tx=S.txns[id];
+  if(!id)S.msg='Enter a transaction ID or press New Deal.';else if(!tx)S.msg='RECORD MISSING';else openTx(tx)}
+ else if(a=='open')openTx(S.txns[t.dataset.id]);
+ else if(a=='addrow'){S.rows.push(blank())}
+ else if(a=='delrow'){if(S.rows.length>1)S.rows.pop()}
+ else if(a=='refresh'){S.errs=[];S.bad={}}
+ else if(a=='validate'){validate();if(!S.errs.length)S.msg='Validation OK'}
+ else if(a=='commit'){const e=validate();
+  if(!e.length&&$('#injectGeneric').checked&&!S.fired){S.fired=1;S.errs=[];S.rows.forEach((r,i)=>S.errs.push(`FCY.AMOUNT:${i+1} MISSING AMOUNT.FCY`,`EXPOSURE.DATE.:${i+1} MISSING AMOUNT.FCY`))}
+  else if(!e.length){const id='FT26'+String(Math.floor(Math.random()*1e5)).padStart(5,'0')+'XXXX'.replace(/X/g,()=>Math.floor(Math.random()*10));
+   S.txns[id]={id,rows:JSON.parse(JSON.stringify(S.rows)),by:S.user,st:'INAU'};S.id=id;S.pane='done'}}
+ else if(a=='auth'){const tx=S.cur;
+  if(tx.st=='AUTH')S.msg='RECORD ALREADY AUTHORISED';else if(tx.by==S.user)S.msg='SAME USER CANNOT AUTHORISE OWN INPUT';
+  else{tx.st='AUTH';tx.au=S.user;S.msg='TXN AUTHORISED: '+tx.id}}
+ render()}
+function openTx(tx){S.cur=tx;S.rows=tx.rows;S.pane='view';S.errs=[];S.bad={}}
+
+document.addEventListener('click',e=>{S.last=Date.now();const t=e.target.closest('[data-a]');if(t)act(t.dataset.a,t)});
+['keydown','input'].forEach(k=>document.addEventListener(k,e=>{S.last=Date.now();if(k=='keydown'&&e.key=='Enter'&&e.target.id=='password')act('signin')}));
+setInterval(()=>{const lim=Math.max(5,+$('#idleSec').value||55),left=lim-Math.floor((Date.now()-S.last)/1000);
+ $('#idleLeft').textContent=S.user?left:'-';
+ if(S.user&&left<=0){S.user=null;S.note='Session disconnected due to inactivity.';render()}},1000);
+render();
+</script></body></html>
